@@ -40,7 +40,7 @@ X_test = scaler.transform(X_test)
 
 
 # 7. Logistic Regression
-model = LogisticRegression(max_iter=2000)
+model = LogisticRegression(max_iter=5000, solver="liblinear")
 
 model.fit(X_train, y_train)
 
@@ -67,7 +67,8 @@ print("\nCross-Validation Scores:", scores)
 print("Mean CV Accuracy:", scores.mean())
 
 
-# 11. GridSearchCV - SVM
+# 11. GridSearchCV - SVM with Scaling
+
 svm = SVC()
 
 param_grid = {
@@ -78,12 +79,12 @@ param_grid = {
 grid_search = GridSearchCV(
     svm,
     param_grid,
-    cv=2,
+    cv=5,
     scoring="accuracy",
     n_jobs=2
 )
 
-grid_search.fit(X, y)
+grid_search.fit(X_train, y_train)
 
 print("\nBest SVM Parameters:",
       grid_search.best_params_)
@@ -91,22 +92,83 @@ print("\nBest SVM Parameters:",
 print("Best SVM CV Accuracy:",
       grid_search.best_score_)
 
+# Test Set Prediction
+svm_pred = grid_search.predict(X_test)
 
-# 12. Save Best SVM Model
+print("SVM Test Accuracy:",
+      accuracy_score(y_test, svm_pred))
+
+print("\nSVM Confusion Matrix:")
+print(confusion_matrix(y_test, svm_pred))
+
+print("\nSVM Classification Report:")
+print(classification_report(y_test, svm_pred))
+
+print("\nBest SVM Parameters:",
+      grid_search.best_params_)
+
+print("Best SVM CV Accuracy:",
+      grid_search.best_score_)
+
+# 12. Save SVM Model + Scaler
+
 best_model = grid_search.best_estimator_
 
 joblib.dump(best_model, "best_svm_model.pkl")
+joblib.dump(scaler, "scaler.pkl")
 
 print("\nSVM model saved successfully!")
-
+print("Scaler saved successfully!")
 
 # 13. Load Model
+
 loaded_model = joblib.load("best_svm_model.pkl")
+loaded_scaler = joblib.load("scaler.pkl")
 
 print("SVM model loaded successfully!")
 
 
 # 14. Prediction
-prediction = loaded_model.predict(X.iloc[[0]])
+
+new_data = X.iloc[[0]]
+
+new_data_scaled = loaded_scaler.transform(new_data)
+
+prediction = loaded_model.predict(new_data_scaled)
 
 print("Prediction:", prediction[0])
+# 15. Generate SVM Confusion Matrix
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
+
+fig, ax = plt.subplots(figsize=(7, 6))
+
+ConfusionMatrixDisplay.from_predictions(
+    y_test,
+    svm_pred,
+    display_labels=["No Heart Disease", "Heart Disease"],
+    values_format="d",
+    ax=ax
+)
+
+ax.set_title(
+    f"Heart Disease Prediction\nSVM Confusion Matrix | Accuracy: {accuracy_score(y_test, svm_pred):.2%}",
+    fontsize=14,
+    fontweight="bold"
+)
+
+ax.set_xlabel("Predicted Label")
+ax.set_ylabel("Actual Label")
+
+plt.tight_layout()
+
+plt.savefig(
+    "svm_confusion_matrix.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+print("\nSVM Confusion Matrix image saved successfully!")
+
+plt.show()
